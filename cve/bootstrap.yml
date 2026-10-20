@@ -1,0 +1,119 @@
+---
+# One-time host bootstrap. Run this against a freshly reverted "fresh-os"
+# snapshot, reboot, confirm SSH still works, THEN take the new base snapshot.
+# Not part of the per-CVE lab builds (those assume this has already run).
+- name: Bootstrap fresh-os snapshot base
+  hosts: machine
+  become: true
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Remove unneeded packages left over from previous installs
+      apt:
+        autoremove: true
+        autoclean: true
+
+    - name: Install common lab tooling reused across CVE builds
+      apt:
+        name:
+          - git
+          - curl
+          - wget
+          - tar
+          - net-tools
+          - build-essential
+          - ufw
+        state: present
+
+    - name: Configure passwordless sudo for thehackingmachine
+      copy:
+        dest: /etc/sudoers.d/thehackingmachine
+        content: "thehackingmachine ALL=(ALL) NOPASSWD:ALL\n"
+        mode: "0440"
+        validate: "visudo -cf %s"
+
+    - name: Set /etc/issue login banner
+      copy:
+        dest: /etc/issue
+        mode: "0644"
+        content: |
+          thehackingmachine.com
+
+          OS: Ubuntu 22.04.1 LTS - \m - \r
+          Host: \n
+          Terminal: \l
+          IPv4 Address: \4
+          IPv6 Address: \6
+          Default Login: thehackingmachine / machine
+
+    - name: Find Ubuntu's default MOTD scripts
+      find:
+        paths: /etc/update-motd.d
+        file_type: file
+      register: default_motd_scripts
+
+    - name: Disable Ubuntu's default MOTD scripts (network news/ads/update nags)
+      file:
+        path: "{{ item.path }}"
+        mode: "0644"
+      loop: "{{ default_motd_scripts.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Install thehackingmachine branded MOTD
+      copy:
+        dest: /etc/update-motd.d/00-thehackingmachine
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          . /etc/os-release
+
+          echo ""
+          echo "thehackingmachine.com"
+          echo ""
+          echo "OS: ${PRETTY_NAME} - $(uname -r)"
+          echo "Host: $(hostname)"
+          echo "IPv4 Address: $(hostname -I | awk '{print $1}')"
+          echo "Default Login: thehackingmachine / machine"
+          echo ""
+
+    - name: Disable ufw so lab services stay reachable
+      community.general.ufw:
+        state: disabled
+
+    - name: Turn off unattended background upgrades
+      lineinfile:
+        path: /etc/apt/apt.conf.d/20auto-upgrades
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+      loop:
+        - { regexp: '^APT::Periodic::Update-Package-Lists', line: 'APT::Periodic::Update-Package-Lists "0";' }
+        - { regexp: '^APT::Periodic::Unattended-Upgrade', line: 'APT::Periodic::Unattended-Upgrade "0";' }
+
+    - name: Stop and disable the unattended-upgrades service
+      systemd:
+        name: unattended-upgrades
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Show current network config for a manual static-IP sanity check
+      command: ip -brief addr show
+      register: ip_check
+      changed_when: false
+
+    - name: Display network config
+      debug:
+        msg: "{{ ip_check.stdout_lines }}"
+
+    - name: Reminder
+      debug:
+        msg: >-
+          Bootstrap complete. Reboot the VM now (sudo reboot) in case the apt
+          upgrade pulled a new kernel, confirm SSH still works,
+          THEN take the fresh-os snapshot.
