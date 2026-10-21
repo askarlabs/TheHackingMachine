@@ -19,7 +19,7 @@ right version?") just to confirm the build worked.
 ansible.cfg              # inventory path + sane defaults (host key checking off, etc.)
 inventory/hosts.ini       # single [machine] group, one host
 cve/
-  bootstrap.yml           # one-time host prep, run once per fresh-os snapshot
+  bootstrap.yml           # one-time host prep, run against a fresh-os snapshot to produce clean-base
   cve-<id>.yml            # one playbook per CVE lab
   files/cve-<id>/         # static assets (systemd units, etc.) each playbook deploys
 templates/
@@ -42,8 +42,9 @@ templates/
    This installs common lab tooling, sets up passwordless sudo, brands the
    login banner/MOTD, disables `ufw`, and turns off unattended upgrades.
    Reboot afterward, confirm SSH still works, then take your **base
-   snapshot** (e.g. `fresh-os`) — per-CVE playbooks assume only this
-   bootstrap has run and nothing else.
+   snapshot** (`clean-base`) — per-CVE playbooks assume only this bootstrap
+   has run and nothing else. (`fresh-os` is the earlier, pre-bootstrap
+   snapshot you revert to before running `bootstrap.yml` again.)
 
 3. **Build a CVE lab** by running its playbook against that base snapshot:
 
@@ -70,6 +71,14 @@ You can syntax-check any playbook without running it:
 ansible-playbook cve/cve-2021-41773.yml --syntax-check
 ```
 
+Each playbook's non-exploit sanity checks (service up, right version
+reported, etc.) are tagged `verify`, so you can re-run just those against an
+already-built target without repeating the full build:
+
+```bash
+ansible-playbook cve/cve-2021-41773.yml --tags verify
+```
+
 ## Available CVE labs
 
 | Playbook | CVE | Service |
@@ -78,6 +87,7 @@ ansible-playbook cve/cve-2021-41773.yml --syntax-check
 | `cve/cve-2021-42013-lfi.yml` | CVE-2021-42013 | Apache HTTP Server 2.4.50 (double-encoded path traversal) |
 | `cve/cve-2021-42013-rce.yml` | CVE-2021-42013 | Apache HTTP Server 2.4.50 (RCE via mod_cgi) |
 | `cve/cve-2025-32023.yml` | CVE-2025-32023 | Redis 7.4.2 (HyperLogLog heap overflow RCE) |
+| `cve/cve-2026-87902.yml` | CVE-2026-87902 | WordPress 7.1.1 (unauthenticated path traversal / LFI) |
 
 ## Adding a new CVE lab
 
