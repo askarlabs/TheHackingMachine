@@ -1,0 +1,146 @@
+---
+# Read-only check that the base image matches what bootstrap.yml sets up.
+# Run it against the VM before taking (or after restoring) the "clean-base"
+# snapshot. It changes nothing and ends with "base image OK" if all checks pass.
+- name: Verify base image
+  hosts: machine
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check the OS is Ubuntu 22.04
+      assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+          - ansible_distribution_version == "22.04"
+        fail_msg: "Expected Ubuntu 22.04, found {{ ansible_distribution }} {{ ansible_distribution_version }}"
+        quiet: true
+
+    - name: Gather installed packages
+      package_facts:
+        manager: apt
+
+    - name: Check the common lab tooling is installed
+      assert:
+        that: item in ansible_facts.packages
+        fail_msg: "Package {{ item }} is missing. Run cve/bootstrap.yml."
+        quiet: true
+      loop:
+        - git
+        - curl
+        - wget
+        - tar
+        - net-tools
+        - build-essential
+        - ufw
+
+    - name: Check passwordless sudo file
+      stat:
+        path: /etc/sudoers.d/lab
+      register: sudoers_lab
+
+    - name: Assert passwordless sudo file
+      assert:
+        that:
+          - sudoers_lab.stat.exists
+          - sudoers_lab.stat.mode == "0440"
+        fail_msg: "/etc/sudoers.d/lab is missing or has the wrong mode"
+        quiet: true
+
+    - name: Check the branded login banner and MOTD
+      stat:
+        path: "{{ item }}"
+      loop:
+        - /etc/issue
+        - /etc/update-motd.d/00-thehackingmachine
+      register: branding
+
+    - name: Assert the branding files exist
+      assert:
+        that: item.stat.exists
+        fail_msg: "{{ item.item }} is missing"
+        quiet: true
+      loop: "{{ branding.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the login banner
+      slurp:
+        src: /etc/issue
+      register: issue_file
+
+    - name: Assert the banner is the thehackingmachine one
+      assert:
+        that: "'thehackingmachine.com' in (issue_file.content | b64decode)"
+        fail_msg: "/etc/issue does not contain the thehackingmachine banner"
+        quiet: true
+
+    - name: Read the MOTD script
+      slurp:
+        src: /etc/update-motd.d/00-thehackingmachine
+      register: motd_file
+
+    - name: Assert the MOTD lists all IP addresses
+      assert:
+        that:
+          - "'ip -4 -o addr show' in (motd_file.content | b64decode)"
+          - "'ip -6 -o addr show' in (motd_file.content | b64decode)"
+          - "'hostname -I' not in (motd_file.content | b64decode)"
+        fail_msg: "The MOTD only shows the first IP address. Run cve/bootstrap.yml."
+        quiet: true
+
+    - name: Find executable MOTD scripts
+      find:
+        paths: /etc/update-motd.d
+        file_type: file
+      register: motd_scripts
+
+    - name: Assert only the thehackingmachine MOTD script is executable
+      assert:
+        that: >-
+          motd_scripts.files
+          | selectattr('xusr')
+          | map(attribute='path')
+          | list == ['/etc/update-motd.d/00-thehackingmachine']
+        fail_msg: "Default Ubuntu MOTD scripts are still executable. Run cve/bootstrap.yml."
+        quiet: true
+
+    - name: Check ufw is disabled
+      command: ufw status
+      register: ufw_status
+      changed_when: false
+
+    - name: Assert ufw is disabled
+      assert:
+        that: "'inactive' in ufw_status.stdout"
+        fail_msg: "ufw is active, lab services would be unreachable"
+        quiet: true
+
+    - name: Check unattended upgrades are off
+      command: grep -E '^APT::Periodic::(Update-Package-Lists|Unattended-Upgrade)' /etc/apt/apt.conf.d/20auto-upgrades
+      register: auto_upgrades
+      changed_when: false
+
+    - name: Assert unattended upgrades are off
+      assert:
+        that:
+          - auto_upgrades.stdout_lines | length == 2
+          - auto_upgrades.stdout_lines | select('search', '"0"') | list | length == 2
+        fail_msg: "Periodic apt updates are still enabled"
+        quiet: true
+
+    - name: Check the unattended-upgrades service is disabled
+      command: systemctl is-enabled unattended-upgrades
+      register: unattended_service
+      changed_when: false
+      failed_when: false
+
+    - name: Assert the unattended-upgrades service is disabled
+      assert:
+        that: unattended_service.stdout in ['disabled', 'masked', 'not-found']
+        fail_msg: "unattended-upgrades service is still enabled"
+        quiet: true
+
+    - name: Report result
+      debug:
+        msg: "base image OK"
