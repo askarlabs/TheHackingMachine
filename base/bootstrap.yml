@@ -7,6 +7,11 @@
   become: true
 
   tasks:
+    - name: Ensure no lab marker is baked into the base snapshot
+      file:
+        path: /etc/lab-state
+        state: absent
+
     - name: Disable leftover installer CD-ROM apt source
       replace:
         path: /etc/apt/sources.list

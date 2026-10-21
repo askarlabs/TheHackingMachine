@@ -34,6 +34,17 @@
         - build-essential
         - ufw
 
+    - name: Check no lab marker is present
+      stat:
+        path: /etc/lab-state
+      register: lab_state
+
+    - name: Assert the VM is clean-base
+      assert:
+        that: not lab_state.stat.exists
+        fail_msg: "/etc/lab-state exists - this VM is not clean-base"
+        quiet: true
+
     - name: Check passwordless sudo file
       stat:
         path: /etc/sudoers.d/lab
