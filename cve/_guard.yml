@@ -1,0 +1,32 @@
+---
+# Shared clean-base guard, pulled in as the first step of every per-CVE
+# playbook via pre_tasks. Requires `lab_cve` (the CVE id being built).
+#
+# The marker lives on the VM (not the controller) so reverting to the
+# clean-base snapshot removes it automatically. It is written up front, so a
+# build that fails halfway still leaves the VM marked as dirty.
+# Pass -e force=true to skip the check while iterating on a playbook.
+- name: Check for a previous lab install
+  stat:
+    path: /etc/lab-state
+  register: lab_state
+
+- name: Read the previous lab marker
+  slurp:
+    src: /etc/lab-state
+  register: lab_state_content
+  when: lab_state.stat.exists
+
+- name: Refuse to build on a VM that is not clean-base
+  fail:
+    msg: >-
+      This VM already has {{ (lab_state_content.content | b64decode) | trim }}
+      installed. Restore the clean-base snapshot before building {{ lab_cve }}
+      (or pass -e force=true to override).
+  when: lab_state.stat.exists and not (force | default(false) | bool)
+
+- name: Mark the VM as dirty
+  copy:
+    dest: /etc/lab-state
+    content: "{{ lab_cve }}\n"
+    mode: "0644"
