@@ -120,9 +120,31 @@
       debug:
         msg: "{{ ip_check.stdout_lines }}"
 
+    - name: Reboot the VM in case a new kernel was installed
+      reboot:
+        reboot_timeout: 600
+        post_reboot_delay: 10
+        test_command: whoami
+
+    - name: Wait for SSH to come back after the reboot
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Confirm the machine is up and answering
+      ping:
+
+    - name: Read the running kernel
+      command: uname -r
+      register: kernel_check
+      changed_when: false
+
+    - name: Show the machine is back online
+      debug:
+        msg: "Back online after reboot. Kernel: {{ kernel_check.stdout }}"
+
     - name: Reminder
       debug:
         msg: >-
-          Bootstrap complete. Reboot the VM now (sudo reboot) in case the apt
-          upgrade pulled a new kernel, confirm SSH still works,
-          THEN take the fresh-os snapshot.
+          Bootstrap complete and the VM rebooted cleanly. SSH works.
+          Shut the VM down and take the new base snapshot now.
