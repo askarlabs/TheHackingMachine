@@ -29,10 +29,10 @@
           - ufw
         state: present
 
-    - name: Configure passwordless sudo for thehackingmachine
+    - name: Configure passwordless sudo
       copy:
-        dest: /etc/sudoers.d/thehackingmachine
-        content: "thehackingmachine ALL=(ALL) NOPASSWD:ALL\n"
+        dest: /etc/sudoers.d/lab
+        content: "lab ALL=(ALL) NOPASSWD:ALL\n"
         mode: "0440"
         validate: "visudo -cf %s"
 
@@ -46,9 +46,11 @@
           OS: Ubuntu 22.04.1 LTS - \m - \r
           Host: \n
           Terminal: \l
-          IPv4 Address: \4
-          IPv6 Address: \6
-          Default Login: thehackingmachine / machine
+          IPv4 Address (enp0s3): \4{enp0s3}
+          IPv4 Address (enp0s8): \4{enp0s8}
+          IPv6 Address (enp0s3): \6{enp0s3}
+          IPv6 Address (enp0s8): \6{enp0s8}
+          Default Login: lab / lab
 
     - name: Find Ubuntu's default MOTD scripts
       find:
@@ -77,8 +79,9 @@
           echo ""
           echo "OS: ${PRETTY_NAME} - $(uname -r)"
           echo "Host: $(hostname)"
-          echo "IPv4 Address: $(hostname -I | awk '{print $1}')"
-          echo "Default Login: thehackingmachine / machine"
+          ip -4 -o addr show scope global | awk '{split($4, a, "/"); print "IPv4 Address: " a[1] " (" $2 ")"}'
+          ip -6 -o addr show scope global | awk '{split($4, a, "/"); print "IPv6 Address: " a[1] " (" $2 ")"}'
+          echo "Default Login: lab / lab"
           echo ""
 
     - name: Disable ufw so lab services stay reachable
