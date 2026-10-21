@@ -7,6 +7,12 @@
   become: true
 
   tasks:
+    - name: Disable leftover installer CD-ROM apt source
+      replace:
+        path: /etc/apt/sources.list
+        regexp: '^(deb(?:-src)? .*cdrom:.*)$'
+        replace: '# \1'
+
     - name: Update apt cache
       apt:
         update_cache: true
