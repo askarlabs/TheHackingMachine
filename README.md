@@ -18,8 +18,11 @@ right version?") just to confirm the build worked.
 ```
 ansible.cfg              # inventory path + sane defaults (host key checking off, etc.)
 inventory/hosts.ini       # single [machine] group, one host
-cve/
+base/
   bootstrap.yml           # one-time host prep, run against a fresh-os snapshot to produce clean-base
+  verify.yml              # read-only check that the VM matches clean-base
+cve/
+  _guard.yml              # shared clean-base guard included by every CVE playbook
   cve-<id>.yml            # one playbook per CVE lab
   files/cve-<id>/         # static assets (systemd units, etc.) each playbook deploys
 templates/
@@ -34,16 +37,17 @@ templates/
 2. **Bootstrap it once**, against a freshly reverted snapshot:
 
    ```bash
-   ansible-playbook cve/bootstrap.yml
+   ansible-playbook base/bootstrap.yml
    # or, before passwordless sudo exists yet:
-   ansible-playbook cve/bootstrap.yml --ask-become-pass
+   ansible-playbook base/bootstrap.yml --ask-become-pass
    ```
 
    This installs common lab tooling, sets up passwordless sudo, brands the
    login banner/MOTD, disables `ufw`, and turns off unattended upgrades.
    Reboot afterward, confirm SSH still works, then take your **base
    snapshot** (`clean-base`) — per-CVE playbooks assume only this bootstrap
-   has run and nothing else. (`fresh-os` is the earlier, pre-bootstrap
+   has run and nothing else. `ansible-playbook base/verify.yml` confirms the VM
+   matches it. (`fresh-os` is the earlier, pre-bootstrap
    snapshot you revert to before running `bootstrap.yml` again.)
 
 3. **Build a CVE lab** by running its playbook against that base snapshot:
@@ -60,10 +64,16 @@ templates/
 4. **Exploit it yourself**, manually, against the now-running target.
 
 5. **Revert the VM** to the base snapshot before building a different CVE
-   lab (or rebuilding the same one) — playbooks assume zero prior state and
-   are written to never skip steps via idempotency shortcuts, so a stale VM
-   won't silently break the build, but a clean revert keeps things fast and
-   predictable.
+   lab (or rebuilding the same one). This is enforced: each playbook first
+   checks for a marker file, `/etc/lab-state`, on the VM and refuses to run
+   if it exists, telling you which CVE is installed. The marker is written
+   at the start of a build (so a failed build still counts as dirty) and
+   disappears when you restore the snapshot. To build anyway while iterating
+   on a playbook, pass `-e force=true`:
+
+   ```bash
+   ansible-playbook cve/cve-2021-41773.yml -e force=true
+   ```
 
 You can syntax-check any playbook without running it:
 
@@ -94,7 +104,8 @@ ansible-playbook cve/cve-2021-41773.yml --tags verify
 Follow the shape of `cve/cve-2025-32023.yml`: install deps → build/install
 the vulnerable version from source → apply the deliberately vulnerable
 config → deploy a systemd unit from `cve/files/<cve-id>/` → start/restart
-the service. Don't add an exploit-and-assert step — that's done by hand
+the service. Include the clean-base guard as the first step
+(`pre_tasks` → `import_tasks: _guard.yml`, with `lab_cve` set to the CVE id). Don't add an exploit-and-assert step — that's done by hand
 against the deployed VM.
 
 If you're writing an accompanying public write-up, start from
