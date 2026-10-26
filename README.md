@@ -1,5 +1,23 @@
-# thehackingmachine — Build a vulnerable machine
+<!-- markdownlint-disable MD033 -->
+<h1 align="center">
+  <a href="https://thehackingmachine.com" target="_blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="site/static/img/logo-light.png">
+      <img src="site/static/img/logo-light.png">
+    </picture>
+  </a>
+</h1>
+<p align="center"> <em>Build a local vulnerable machine in one command</em></p>
+<div align="center">
 
+![GitHub last commit](https://img.shields.io/github/last-commit/askarlabs/TheHackingMachine)
+
+</div>
+
+<br />
+<!-- markdownlint-enable MD033 -->
+
+# TheHackingMachine
 Ansible playbooks that build deliberately vulnerable lab VMs for OSCP-style
 practice. Each playbook stands up one CVE's vulnerable service on a target
 VM, deliberately misconfigured/unpatched, and leaves it running — ready for
@@ -13,7 +31,10 @@ right version?") just to confirm the build worked.
 - A target VM reachable over SSH, reverted to a clean snapshot before each
   build (see below)
 
-## Layout
+## How to setup
+[Visit our how to guide to setup the base VM](https://thehackingmachine.com/get-started/01)
+
+## Git Repo Layout
 
 ```
 ansible.cfg              # inventory path + sane defaults (host key checking off, etc.)
