@@ -27,6 +27,8 @@ cve/
   files/cve-<id>/         # static assets (systemd units, etc.) each playbook deploys
 templates/
   cve-writeup.md          # template for a write-up accompanying a new CVE lab
+writeups/
+  cve-<id>.md             # published write-ups for each CVE lab, built from the template
 ```
 
 ## Workflow
@@ -98,6 +100,7 @@ ansible-playbook cve/cve-2021-41773.yml --tags verify
 | `cve/cve-2021-42013-rce.yml` | CVE-2021-42013 | Apache HTTP Server 2.4.50 (RCE via mod_cgi) |
 | `cve/cve-2025-32023.yml` | CVE-2025-32023 | Redis 7.4.2 (HyperLogLog heap overflow RCE) |
 | `cve/cve-2026-87902.yml` | CVE-2026-87902 | WordPress 7.1.1 (unauthenticated path traversal / LFI) |
+| `cve/cve-2026-109618.yml` | CVE-2026-109618 / CVE-2026-109619 | PHP 8.4.26 "PHP2Shell" (memory corruption RCE via mod_php) |
 
 ## Adding a new CVE lab
 
@@ -110,7 +113,8 @@ against the deployed VM.
 
 If you're writing an accompanying public write-up, start from
 `templates/cve-writeup.md` — it explains what's safe to publish (build +
-verify steps) and what isn't (exploit code/PoCs).
+verify steps) and what isn't (exploit code/PoCs). Save the finished write-up
+to `writeups/cve-<id>.md` (see `writeups/cve-2026-109618.md` for an example).
 
 ## License
 
