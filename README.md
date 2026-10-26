@@ -98,7 +98,9 @@ ansible-playbook cve/cve-2021-41773.yml --tags verify
 | `cve/cve-2021-41773.yml` | CVE-2021-41773 | Apache HTTP Server 2.4.49 (path traversal / RCE via mod_cgi) |
 | `cve/cve-2021-42013-lfi.yml` | CVE-2021-42013 | Apache HTTP Server 2.4.50 (double-encoded path traversal) |
 | `cve/cve-2021-42013-rce.yml` | CVE-2021-42013 | Apache HTTP Server 2.4.50 (RCE via mod_cgi) |
+| `cve/cve-2021-44228.yml` | CVE-2021-44228 | log4j 2.14.1 "Log4Shell" (unauthenticated RCE via JNDI lookups) |
 | `cve/cve-2025-32023.yml` | CVE-2025-32023 | Redis 7.4.2 (HyperLogLog heap overflow RCE) |
+| `cve/cve-2025-55182.yml` | CVE-2025-55182 | Next.js 15.4.7 / React 19.1.0 "React2Shell" (unauthenticated RCE via RSC deserialization) |
 | `cve/cve-2026-87902.yml` | CVE-2026-87902 | WordPress 7.1.1 (unauthenticated path traversal / LFI) |
 | `cve/cve-2026-109618.yml` | CVE-2026-109618 / CVE-2026-109619 | PHP 8.4.26 "PHP2Shell" (memory corruption RCE via mod_php) |
 
